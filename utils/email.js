@@ -1,4 +1,8 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+// Force IPv4 to avoid timeouts with Gmail on some hosting providers
+dns.setDefaultResultOrder('ipv4first');
 
 // Create reusable transporter object using the default SMTP transport
 const transporter = nodemailer.createTransport({
