@@ -1,55 +1,34 @@
-const nodemailer = require('nodemailer');
-const dns = require('dns');
+const { Resend } = require('resend');
 
-// Force IPv4 to avoid timeouts with Gmail on some hosting providers
-dns.setDefaultResultOrder('ipv4first');
+// Initialize Resend with API Key
+// Make sure RESEND_API_KEY is set in your .env file
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Create reusable transporter object using the default SMTP transport
-// Create reusable transporter object using the default SMTP transport
-// Create reusable transporter object
-// Prioritize EMAIL_SERVICE (e.g., 'gmail') if set, otherwise use explicit host/port
-const transporterConfig = process.env.EMAIL_SERVICE
-  ? {
-      service: process.env.EMAIL_SERVICE,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    }
-  : {
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true, // true for 465, false for other ports
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    };
-
-// Add common options and timeouts
-const transporter = nodemailer.createTransport({
-  ...transporterConfig,
-  logger: true, // Log to console
-  debug: true, // Include debug info
-  connectionTimeout: 60000, // 60 seconds
-  greetingTimeout: 60000, // 60 seconds
-  socketTimeout: 60000, // 60 seconds
-});
-
-// Helper to send email
+/**
+ * Send an email using Resend
+ * @param {string} to - Recipient email address
+ * @param {string} subject - Email subject
+ * @param {string} html - Email HTML body
+ * @returns {Promise<boolean>} - True if sent successfully, false otherwise
+ */
 const sendEmail = async (to, subject, html) => {
   try {
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM, // sender address
-      to: to, // list of receivers
-      subject: subject, // Subject line
-      html: html, // html body
+    const { data, error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM || 'onboarding@resend.dev', // Use 'onboarding@resend.dev' for testing if you haven't verified a domain
+      to: to,
+      subject: subject,
+      html: html,
     });
 
-    console.log(`✅ Email sent to ${to}: ${info.messageId}`);
+    if (error) {
+      console.error('❌ Error sending email with Resend:', error);
+      return false;
+    }
+
+    console.log(`✅ Email sent to ${to}: ${data.id}`);
     return true;
   } catch (error) {
-    console.error(`❌ Error sending email: ${error.message}`);
+    console.error(`❌ Unexpected error sending email: ${error.message}`);
     return false;
   }
 };
@@ -57,9 +36,6 @@ const sendEmail = async (to, subject, html) => {
 // Send activation email
 const sendActivationEmail = async (email, firstName, activationToken) => {
   const activationUrl = `${process.env.FRONTEND_URL}/activate/${activationToken}`;
-
-  // Log for development/debugging
-  /* console.log('🔗 Activation Link (Dev):', activationUrl); */
 
   const html = `
       <!DOCTYPE html>
