@@ -6,18 +6,34 @@ dns.setDefaultResultOrder('ipv4first');
 
 // Create reusable transporter object using the default SMTP transport
 // Create reusable transporter object using the default SMTP transport
+// Create reusable transporter object
+// Prioritize EMAIL_SERVICE (e.g., 'gmail') if set, otherwise use explicit host/port
+const transporterConfig = process.env.EMAIL_SERVICE
+  ? {
+      service: process.env.EMAIL_SERVICE,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    }
+  : {
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true, // true for 465, false for other ports
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    };
+
+// Add common options and timeouts
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  },
+  ...transporterConfig,
   logger: true, // Log to console
   debug: true, // Include debug info
-  connectionTimeout: 10000, // 10 seconds
-  greetingTimeout: 5000 // 5 seconds
+  connectionTimeout: 60000, // 60 seconds
+  greetingTimeout: 60000, // 60 seconds
+  socketTimeout: 60000, // 60 seconds
 });
 
 // Helper to send email
