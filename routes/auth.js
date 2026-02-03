@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const { generateRandomToken, generateJWT } = require('../utils/token');
-const { sendActivationEmail, sendPasswordResetEmail } = require('../utils/email');
 const authMiddleware = require('../middleware/auth');
 
 // @route   POST /api/auth/register
@@ -43,31 +42,18 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Generate activation token
-    const activationToken = generateRandomToken();
-    const activationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
     // Create user
     const user = await User.create({
       email: email.toLowerCase(),
       firstName,
       lastName,
       password,
-      isActive: false,
-      activationToken,
-      activationTokenExpiry
+      isActive: true
     });
-
-    // Send activation email
-    const emailSent = await sendActivationEmail(user.email, user.firstName, activationToken);
-
-    if (!emailSent) {
-      console.warn('⚠️ Failed to send activation email, but user was created');
-    }
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful! Please check your email to activate your account.',
+      message: 'Registration successful! You can now login.',
       data: {
         email: user.email,
         firstName: user.firstName,
@@ -84,53 +70,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// @route   GET /api/auth/activate/:token
-// @desc    Activate user account
-// @access  Public
-router.get('/activate/:token', async (req, res) => {
-  try {
-    const { token } = req.params;
-
-    // Find user with valid activation token
-    const user = await User.findOne({
-      activationToken: token,
-      activationTokenExpiry: { $gt: Date.now() }
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired activation link.'
-      });
-    }
-
-    // Check if already activated
-    if (user.isActive) {
-      return res.status(400).json({
-        success: false,
-        message: 'Account is already activated. Please login.'
-      });
-    }
-
-    // Activate user
-    user.isActive = true;
-    user.activationToken = null;
-    user.activationTokenExpiry = null;
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Account activated successfully! You can now login.'
-    });
-  } catch (error) {
-    console.error('Activation error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Activation failed. Please try again.',
-      error: error.message
-    });
-  }
-});
 
 // @route   POST /api/auth/login
 // @desc    Login user
@@ -154,14 +93,6 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password.'
-      });
-    }
-
-    // Check if account is activated
-    if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Account not activated. Please check your email for the activation link.'
       });
     }
 

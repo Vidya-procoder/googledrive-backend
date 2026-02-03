@@ -28,14 +28,6 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
-    // Check if user is active
-    if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Account not activated. Please check your email for activation link.'
-      });
-    }
-
     // Attach user to request
     req.user = user;
     next();
